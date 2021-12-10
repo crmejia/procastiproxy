@@ -1,20 +1,27 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
 var blockList map[string]bool = map[string]bool{
-	"http://www.google.com/": true,
+	"google.com":     true,
+	"www.google.com": true,
 }
 
 func proxy(w http.ResponseWriter, r *http.Request) {
-	// TODO determine how the response is supposed to work
-	if _, ok := blockList[r.RequestURI]; ok {
-		fmt.Println(blockList, r.RequestURI)
+	fmt.Println(r.URL.Hostname())
+	if _, ok := blockList[r.Host]; ok {
+		// should i be creating a response object?
+		//resp := http.Response{Request: r}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprint(w, "forbidden")
+
+		//https://stackoverflow.com/questions/37863374/whats-the-difference-between-responsewriter-write-and-io-writestring
+		jsonEncoder := json.NewEncoder(w)
+		jsonEncoder.Encode(`{"message": "forbidden"}`)
 	} else {
 		// TODO do other methods
 		resp, err := http.Get(r.RequestURI)
