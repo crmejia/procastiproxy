@@ -63,22 +63,64 @@ func TestProxy(t *testing.T) {
 //test the program exits on empty blocklist
 // once gain testing lang this? https://stackoverflow.com/questions/26225513/how-to-test-os-exit-scenarios-in-go/45379980
 
-//func TestAdminAddRemoveDomain(t *testing.T) {
-//	test := []struct {
-//		name    string
-//		domain  string
-//		allowed bool
-//	}{
-//		{
-//			name:    "test adding site",
-//			domain:  "example.net",
-//			allowed: false,
-//		},
-//		{
-//			name:    "test removing site",
-//			domain:  "example.net",
-//			allowed: true,
-//		},
-//	}
-//
-//}
+func TestAdminAddRemoveDomain(t *testing.T) {
+	test := []struct {
+		name       string
+		method     string
+		handler    http.HandlerFunc
+		targetURL  string
+		blocklist  map[string]bool
+		key        string
+		statusCode int
+		want       bool
+	}{
+		{
+			name:       "test blocking site",
+			method:     http.MethodGet,
+			handler:    adminBlockHandler,
+			targetURL:  "http://localhost:8080/admin/block/example.net",
+			blocklist:  map[string]bool{},
+			key:        "example.net",
+			statusCode: http.StatusOK,
+			want:       true,
+		},
+		{
+			name:       "test removing site",
+			method:     http.MethodGet,
+			handler:    adminUnblockHandler,
+			targetURL:  "http://localhost:8080/admin/block/example.net",
+			blocklist:  map[string]bool{"example.net": true},
+			key:        "example.net",
+			statusCode: http.StatusOK,
+			want:       false,
+		},
+	}
+	for _, tc := range test {
+		t.Run(tc.name, func(t *testing.T) {
+			blockList = tc.blocklist
+			//check that blocklist is in the correct state
+			got := blockList[tc.key]
+			if tc.want == got {
+				//could be written better
+				t.Errorf("want %t, got %t", tc.want, got)
+			}
+
+			request := httptest.NewRequest(tc.method, tc.targetURL, nil)
+
+			responseRecorder := httptest.NewRecorder()
+			tc.handler(responseRecorder, request)
+
+			// check the response is correct, after all this is still a server
+			if responseRecorder.Code != tc.statusCode {
+				t.Errorf("want %d, got %d", tc.statusCode, responseRecorder.Code)
+			}
+
+			//check that the hash value is changed.
+			got = blockList[tc.key]
+			if tc.want != got {
+				//could be written better
+				t.Errorf("want %t, got %t", tc.want, got)
+			}
+		})
+	}
+}
