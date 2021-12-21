@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 )
 
 var blockList = map[string]bool{}
@@ -15,7 +16,7 @@ var blockList = map[string]bool{}
 //Should this be a method? would it make it more "natural"
 func proxy(w http.ResponseWriter, r *http.Request) {
 	if blockList[r.URL.Hostname()] {
-		// should i be creating a response object?
+		// should I be creating a response object?
 		//resp := http.Response{Request: r}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
@@ -41,20 +42,23 @@ func parseBlockList(list *[]string) error {
 	// its   to have a *[]string but I guess the point of this function is to remove the "weirdness" by parsing
 	for i := 0; i < len((*list)[0:]); i++ {
 		entry := (*list)[i]
-		url, err := url.Parse(entry)
+		entryUrl, err := url.Parse(entry)
 		if err != nil {
 			return err
 		}
-		blockList[url.Hostname()] = true
+		blockList[entryUrl.Hostname()] = true
 	}
 	return nil
 }
 
+var mutex sync.Mutex
+
 func adminHandler(w http.ResponseWriter, r *http.Request, b bool) {
 	path := strings.Split(r.URL.Path, "/")
 	if len(path) == 4 {
+		mutex.Lock()
 		blockList[path[3]] = b
-		fmt.Println(blockList)
+		mutex.Unlock()
 	} else {
 		fmt.Fprintf(w, "malformed path %s", r.URL.Path)
 	}
