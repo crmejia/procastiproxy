@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // what am I testing??? test domains are inserted correctly
@@ -24,11 +25,14 @@ func TestParseArgs(t *testing.T) {
 
 func TestProxy(t *testing.T) {
 	test := []struct {
-		name       string
-		method     string
-		target     string
-		block      string
-		statusCode int
+		name               string
+		method             string
+		target             string
+		block              string
+		statusCode         int
+		officeHoursEnabled bool
+		startTime          time.Time
+		endTime            time.Time
 	}{
 		{
 			name:       "test unblocked request",
@@ -44,13 +48,37 @@ func TestProxy(t *testing.T) {
 			block:      "example.com",
 			statusCode: http.StatusForbidden,
 		},
+		{
+			name:               "test request is not blocked outside office hourse ",
+			method:             http.MethodGet,
+			target:             "http://example.com",
+			block:              "example.com",
+			statusCode:         http.StatusOK,
+			officeHoursEnabled: true,
+			startTime:          parseTime(10, 0),
+			endTime:            parseTime(12, 0),
+		},
+		{
+			name:               "test request is blocked during office hours ",
+			method:             http.MethodGet,
+			target:             "http://example.com",
+			block:              "example.com",
+			statusCode:         http.StatusForbidden,
+			officeHoursEnabled: true,
+			startTime:          parseTime(9, 0),
+			endTime:            parseTime(13, 0),
+		},
 	}
 	for _, tc := range test {
 		t.Run(tc.name, func(t *testing.T) {
-			request := httptest.NewRequest(tc.method, tc.target, nil)
 			blockList = map[string]bool{
 				tc.block: true,
 			}
+			officeHoursEnabled = tc.officeHoursEnabled
+			startTime = tc.startTime
+			endTime = tc.endTime
+
+			request := httptest.NewRequest(tc.method, tc.target, nil)
 			responseRecorder := httptest.NewRecorder()
 			proxy(responseRecorder, request)
 			if responseRecorder.Code != tc.statusCode {

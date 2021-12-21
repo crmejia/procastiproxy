@@ -9,13 +9,35 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 )
 
 var blockList = map[string]bool{}
+var startTime time.Time
+var endTime time.Time
+var officeHoursEnabled bool
+
+const (
+	startHour = 8
+	startMin  = 0
+	endHour   = 10
+	endMin    = 0
+)
+
+func parseTime(hour, min int) time.Time {
+	clock := time.Now()
+	t := time.Date(clock.Year(), clock.Month(), clock.Day(), hour, min, clock.Second(), clock.Nanosecond(), clock.Location())
+	return t
+}
 
 //Should this be a method? would it make it more "natural"
 func proxy(w http.ResponseWriter, r *http.Request) {
-	if blockList[r.URL.Hostname()] {
+	inHours := true
+	if officeHoursEnabled && (startTime.After(time.Now()) || endTime.Before(time.Now())) {
+		inHours = false
+	}
+
+	if blockList[r.URL.Hostname()] && inHours {
 		// should I be creating a response object?
 		//resp := http.Response{Request: r}
 		w.Header().Set("Content-Type", "application/json")
@@ -73,6 +95,9 @@ func adminUnblockHandler(w http.ResponseWriter, r *http.Request) {
 func run() {
 	bl := pflag.StringSlice("blocklist", nil, "comma-separated list of hostnames to block")
 	pflag.Parse()
+
+	startTime = parseTime(startHour, startMin)
+	endTime = parseTime(endHour, endMin)
 
 	if *bl != nil {
 		//insert into the dictionary
