@@ -1,7 +1,11 @@
 package main
 
+import "log"
+
 func main() {
-	//run()
-	proxy := NewProxy()
+	proxy, err := NewProxy()
+	if err != nil {
+		log.Fatal(err)
+	}
 	proxy.Run()
 }
