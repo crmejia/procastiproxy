@@ -9,18 +9,56 @@ import (
 
 // what am I testing??? test domains are inserted correctly
 // by testing valid and invalid gets on the already tested go hashmap?
-func TestParseArgs(t *testing.T) {
+func TestParseBlockList(t *testing.T) {
 	input := []string{"google.com", "example.net"}
-	//var input []string
 	parseBlockList(&input)
-
 	for _, v := range input {
-		//t.Logf(v)
 		if !blockList[v] {
 			t.Errorf("%s was not inserted in the blocklist", v)
 		}
 	}
+}
 
+func TestParseOfficeHours(t *testing.T) {
+	test := []struct {
+		name      string
+		startTime string
+		endTime   string
+		err       error
+	}{
+		{
+			name:      "test correct input no errors",
+			startTime: "10:00",
+			endTime:   "12:00",
+			err:       nil,
+		},
+		{
+			name:      "test noTimeProvidedError",
+			startTime: "",
+			endTime:   "12:00",
+			err:       noTimeProvidedError,
+		},
+		{
+			name:      "test malformedInputError (extra :00)",
+			startTime: "12:00:11",
+			endTime:   "12:00",
+			err:       malformedInputError,
+		},
+		{
+			name:      "test malformedInputError (gibberish)",
+			startTime: "gibberish",
+			endTime:   "12:00",
+			err:       malformedInputError,
+		},
+	}
+	for _, tc := range test {
+		t.Run(tc.name, func(t *testing.T) {
+			err := parseOfficeHours(tc.startTime, tc.endTime)
+			if err != tc.err {
+				t.Errorf("expected no errors got: %s", err.Error())
+			}
+		})
+	}
 }
 
 func TestProxy(t *testing.T) {
@@ -49,24 +87,24 @@ func TestProxy(t *testing.T) {
 			statusCode: http.StatusForbidden,
 		},
 		{
-			name:               "test request is not blocked outside office hourse ",
+			name:               "test request is not blocked outside office hours ",
 			method:             http.MethodGet,
 			target:             "http://example.com",
 			block:              "example.com",
 			statusCode:         http.StatusOK,
 			officeHoursEnabled: true,
-			startTime:          parseTime(10, 0),
-			endTime:            parseTime(12, 0),
+			startTime:          time.Now().Add(time.Hour),
+			endTime:            time.Now().Add(time.Hour * 3),
 		},
 		{
-			name:               "test request is blocked during office hours ",
+			name:               "test request is blocked during office hours",
 			method:             http.MethodGet,
 			target:             "http://example.com",
 			block:              "example.com",
 			statusCode:         http.StatusForbidden,
 			officeHoursEnabled: true,
-			startTime:          parseTime(9, 0),
-			endTime:            parseTime(13, 0),
+			startTime:          time.Now().Add(time.Hour * -1), //time - 1
+			endTime:            time.Now().Add(time.Hour * 3),
 		},
 	}
 	for _, tc := range test {

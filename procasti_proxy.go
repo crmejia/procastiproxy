@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/spf13/pflag"
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,17 +19,42 @@ var startTime time.Time
 var endTime time.Time
 var officeHoursEnabled bool
 
-const (
-	startHour = 8
-	startMin  = 0
-	endHour   = 10
-	endMin    = 0
-)
+var noTimeProvidedError = errors.New("office hour time not provided")
+var malformedInputError = errors.New("input is malformed")
 
-func parseTime(hour, min int) time.Time {
-	clock := time.Now()
-	t := time.Date(clock.Year(), clock.Month(), clock.Day(), hour, min, clock.Second(), clock.Nanosecond(), clock.Location())
-	return t
+//func parseTime(hour, min int) time.Time {
+func parseTime(inputTime string) (time.Time, error) {
+	inputSlice := strings.Split(inputTime, ":")
+	if len(inputSlice) == 2 {
+		hour, err := strconv.Atoi(inputSlice[0])
+		if err != nil {
+			return time.Now(), err
+		}
+		min, err := strconv.Atoi(inputSlice[1])
+		if err != nil {
+			return time.Now(), err
+		}
+		clock := time.Now()
+		return time.Date(clock.Year(), clock.Month(), clock.Day(), hour, min, clock.Second(), clock.Nanosecond(), clock.Location()), nil
+	}
+	return time.Now(), malformedInputError
+}
+
+func parseOfficeHours(officeHourStartTime string, officeHourEndTime string) error {
+	if officeHourStartTime == "" || officeHourEndTime == "" {
+		return noTimeProvidedError
+	}
+	var err error
+	startTime, err = parseTime(officeHourStartTime)
+	if err != nil {
+		return err
+	}
+	endTime, err = parseTime(officeHourEndTime)
+	if err != nil {
+		return err
+	}
+	officeHoursEnabled = true
+	return nil
 }
 
 //Should this be a method? would it make it more "natural"
@@ -94,10 +121,11 @@ func adminUnblockHandler(w http.ResponseWriter, r *http.Request) {
 
 func run() {
 	bl := pflag.StringSlice("blocklist", nil, "comma-separated list of hostnames to block")
+	officeHourStartTime := pflag.String("starttime", "", "Office Hour Start time HH:MM")
+	officeHourEndTime := pflag.String("endtime", "", "Office Hour Start time HH:MM")
 	pflag.Parse()
 
-	startTime = parseTime(startHour, startMin)
-	endTime = parseTime(endHour, endMin)
+	parseOfficeHours(*officeHourStartTime, *officeHourEndTime)
 
 	if *bl != nil {
 		//insert into the dictionary
