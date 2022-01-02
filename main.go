@@ -1,5 +1,7 @@
 package main
 
 func main() {
-	run()
+	//run()
+	proxy := NewProxy()
+	proxy.Run()
 }

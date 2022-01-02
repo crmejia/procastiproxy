@@ -118,7 +118,7 @@ func TestProxy(t *testing.T) {
 
 			request := httptest.NewRequest(tc.method, tc.target, nil)
 			responseRecorder := httptest.NewRecorder()
-			proxy(responseRecorder, request)
+			proxyHandler(responseRecorder, request)
 			if responseRecorder.Code != tc.statusCode {
 				t.Errorf("want %d, got %d", tc.statusCode, responseRecorder.Code)
 			}
