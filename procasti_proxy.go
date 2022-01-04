@@ -92,6 +92,8 @@ func (p *Proxy) adminHandler(w http.ResponseWriter, r *http.Request, b bool) {
 		fmt.Fprintf(w, "malformed path %s", r.URL.Path)
 	}
 }
+
+//TODO can these methods be simplified in a away that there's a single handler for both actions???
 func (p *Proxy) adminBlockHandler(w http.ResponseWriter, r *http.Request) {
 	p.adminHandler(w, r, true)
 }
